@@ -1,0 +1,7 @@
+{
+    "git.ignoreLimitWarning": true,
+    "powershell.codeFormatting.openBraceOnSameLine": false,
+    "powershell.codeFormatting.whitespaceBeforeOpenBrace": false,
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true
+}

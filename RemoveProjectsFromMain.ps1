@@ -1,0 +1,1 @@
+& "$PSScriptRoot\RemoveProjectsFromSolution.ps1" C:\Dayforce\exp\Main.sln
