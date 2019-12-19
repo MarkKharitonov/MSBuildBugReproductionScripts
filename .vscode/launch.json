@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "RemoveAllSourceFilesFromProject",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1"
+        },
+        {
             "name": "PowerShell Launch Current File",
             "type": "PowerShell",
             "request": "launch",
@@ -15,7 +21,7 @@
             "name": "RemoveReferenceFromProject Main",
             "type": "PowerShell",
             "request": "launch",
-            "script": "C:\\temp\\exp_scripts\\RemoveReferenceFromProject.ps1",
+            "script": "${workspaceFolder}\\RemoveReferenceFromProject.ps1",
             "args": [
                 "Main"
             ]
@@ -24,7 +30,7 @@
             "name": "RemoveReferenceFromProject DataSvc",
             "type": "PowerShell",
             "request": "launch",
-            "script": "C:\\temp\\exp_scripts\\RemoveReferenceFromProject.ps1",
+            "script": "${workspaceFolder}\\RemoveReferenceFromProject.ps1",
             "args": [
                 "DataSvc"
             ]

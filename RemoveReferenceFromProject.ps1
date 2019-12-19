@@ -4,8 +4,6 @@ function ParseSourceProject($SourceProjectPath, $BuildOrder)
 {
     $SourceProjectPath = (Get-Item $SourceProjectPath).FullName
     $xml = [xml](Get-Content $SourceProjectPath)
-    $nsmgr = [Xml.XmlNamespaceManager]::New($xml.NameTable)
-    $nsmgr.AddNamespace('a', "http://schemas.microsoft.com/developer/msbuild/2003")
 
     $DllReferences = $xml.Project.ItemGroup.Reference | Where-Object { 
         $_.HintPath -and $_.HintPath -notmatch '(packages|Dependencies)' 
@@ -33,7 +31,6 @@ function ParseSourceProject($SourceProjectPath, $BuildOrder)
         Path             = $SourceProjectPath
         Name             = [io.path]::GetFileNameWithoutExtension($SourceProjectPath)
         Xml              = $xml
-        XmlNsMgr         = $nsmgr
         ProjectsToRemove = $DllReferences, $ProjectReferences | ForEach-Object { $_ } | ForEach-Object {
             $ProjectName = [io.path]::GetFileNameWithoutExtension($_.ProjectPath)
             $_ | Add-Member @{
@@ -65,7 +62,7 @@ function DoRemoveReference($SourceProject, $ProjectToRemove)
 {
     $RawValue = $ProjectToRemove.RawValue
     $Element = $ProjectToRemove.Element
-    $node = $SourceProject.Xml.SelectNodes("/a:Project/a:ItemGroup/a:$Element[@Include='$RawValue']", $SourceProject.XmlNsMgr)
+    $node = $SourceProject.Xml.SelectNodes("/a:Project/a:ItemGroup/a:$Element[@Include='$RawValue']")
     if (!$node)
     {
         throw "Failed to locate the reference XML node for $RawValue"
@@ -78,8 +75,11 @@ function DoRemoveReference($SourceProject, $ProjectToRemove)
     $SourceProject.Xml.Save($SourceProject.Path)
 }
 
-function RemoveFailingFilesFromProject($ProjectXml, $nsmgr, $ProjectPath, $SourceFiles)
+function RemoveFailingFilesFromProject($ProjectXml, $ProjectPath, $SourceFiles)
 {
+    $nsmgr = [Xml.XmlNamespaceManager]::New($ProjectXml.NameTable)
+    $nsmgr.AddNamespace('a', "http://schemas.microsoft.com/developer/msbuild/2003")
+
     $FilesToRemove = (Get-Content c:\temp\errors.txt) -replace '\(.+', '' | Sort-Object -Unique
     $FilesToRemove = $FilesToRemove | ForEach-Object {
         Push-Location "$ProjectPath\.."
@@ -174,7 +174,7 @@ function RemoveReference($SourceProject, $ProjectToRemove, $Solutions, $Solution
                 Write-Host -NoNewline "$BuildProjectName $i                                         `r"
                 $null = msbuild ".\$SolutionName.sln" /t:$BuildTarget /noconlog /nologo /fl1 "/flp1:logfile=c:\temp\errors.txt;errorsonly" /fl2 "/flp2:logfile=c:\temp\warnings.txt;warningsonly"
                 Get-Content c:\temp\warnings.txt
-                $Cont = RemoveFailingFilesFromProject $xml $SourceProject.XmlNsMgr $BuildProjectPath $SourceFiles
+                $Cont = RemoveFailingFilesFromProject $xml $BuildProjectPath $SourceFiles
             } while ($Cont)
         }
     }
