@@ -1,12 +1,14 @@
+param($StartIndex)
+
 function InitialBuild()
 {
     Write-Host -NoNewline -ForegroundColor Green "Building ... "
-    msbuild DataSvc.sln /v:q /m /nologo
+    msbuild DataSvc.sln /err /v:q /m /nologo
     if ($LASTEXITCODE)
     {
         throw "Failed"
     }
-    msbuild Main.sln /v:q /m /nologo
+    msbuild Main.sln /err /v:q /m /nologo
     if ($LASTEXITCODE)
     {
         throw "Failed"
@@ -14,16 +16,26 @@ function InitialBuild()
     Write-Host -ForegroundColor Green "done."
 }
 
-function RemoveFilesFromProject($ProjectXml, $ProjectPath, $SharedSourceFiles, $FilesToRemove)
+function RemoveFilesFromProject($ProjectXml, $ProjectPath, $SharedSourceFiles, $FilesToRemove, [switch]$MayNotExist)
 {
     $nsmgr = [Xml.XmlNamespaceManager]::New($ProjectXml.NameTable)
     $nsmgr.AddNamespace('a', "http://schemas.microsoft.com/developer/msbuild/2003")
 
     $FilesToRemove = $FilesToRemove | Where-Object { $_ } | ForEach-Object {
         Push-Location "$ProjectPath\.."
-        $CompileInclude = Resolve-Path $_ -Relative
-        $FullPath = (Get-Item $CompileInclude).FullName
-        Pop-Location
+        try
+        {
+            if (!(Test-Path $_) -and $MayNotExist)
+            {
+                return
+            }
+            $CompileInclude = Resolve-Path $_ -Relative
+            $FullPath = (Get-Item $CompileInclude).FullName
+        }
+        finally
+        {
+            Pop-Location
+        }
         if ($CompileInclude.StartsWith('.\'))
         {
             $CompileInclude = $CompileInclude.Substring(2)
@@ -32,12 +44,17 @@ function RemoveFilesFromProject($ProjectXml, $ProjectPath, $SharedSourceFiles, $
         $node = $ProjectXml.SelectNodes("/a:Project/a:ItemGroup/a:Compile[@Include='$CompileInclude']", $nsmgr)
         if (!$node -or !$node[0])
         {
+            if ($MayNotExist)
+            {
+                return
+            }
             throw "Failed to locate the compile XML node for $CompileInclude in $ProjectPath"
         }
-        if ($node.Count -gt 1)
+        elseif ($node.Count -gt 1)
         {
             throw "Found more than one compile XML node for $CompileInclude in $ProjectPath"
         }
+
         $null = $node[0].ParentNode.RemoveChild($node[0])
         if ($SharedSourceFiles[$FullPath])
         {
@@ -51,8 +68,14 @@ function RemoveFilesFromProject($ProjectXml, $ProjectPath, $SharedSourceFiles, $
         $ProjectXml.Save($ProjectPath)
 
         Push-Location "$ProjectPath\.."
-        Remove-Item $($FilesToRemove | Where-Object { !$SharedSourceFiles[$_] })
-        Pop-Location
+        try
+        {
+            Remove-Item $($FilesToRemove | Where-Object { !$SharedSourceFiles[$_] })
+        }
+        finally
+        {
+            Pop-Location
+        }
         $true
     }
 }
@@ -64,20 +87,28 @@ function RemoveFailingFilesFromProject($ProjectXml, $ProjectPath, $SharedSourceF
     RemoveFilesFromProject $ProjectXml $ProjectPath SharedSourceFiles $FilesToRemove
 }
 
-function AdjustProject($SolutionName, $Solution, $BuildProjectName, $SharedSourceFiles)
+function AdjustProject($SolutionName, $Solution, $BuildProjectName, $SharedSourceFiles, $SourceProject)
 {
     $BuildTarget = $BuildProjectName.Replace('.', '_')
-    $BuildProjectPath = $Solution.Projects | Where-Object { [io.path]::GetFileNameWithoutExtension($_) -eq $BuildProjectName }
-    if (!$BuildProjectPath)
-    {
-        throw "Failed to locate the path to the project $BuildProjectName in $SolutionName.sln"
-    }
-    if ($BuildProjectPath -is [array])
-    {
-        throw "$BuildProjectName in $SolutionName.sln maps to more than one path - $BuildProjectPath"
-    }
 
-    $xml = [xml](Get-Content $BuildProjectPath)                
+    if ($SourceProject.Name -eq $BuildProjectName)
+    {
+        $BuildProjectPath = $SourceProject.Path
+        $xml = $SourceProject.Xml
+    }
+    else
+    {
+        $BuildProjectPath = $Solution.Projects | Where-Object { [io.path]::GetFileNameWithoutExtension($_) -eq $BuildProjectName }
+        if (!$BuildProjectPath)
+        {
+            throw "Failed to locate the path to the project $BuildProjectName in $SolutionName.sln"
+        }
+        if ($BuildProjectPath -is [array])
+        {
+            throw "$BuildProjectName in $SolutionName.sln maps to more than one path - $BuildProjectPath"
+        }
+        $xml = [xml](Get-Content $BuildProjectPath)                
+    }
 
     $i = 0
     do
@@ -119,8 +150,8 @@ $SharedSourceFiles.Solutions | ForEach-Object {
 
         Write-Host -ForegroundColor Green "Attempting to remove all the source files from $ProjectName in $SolutionName"
 
-        InitialBuild
         pskill msbuild
+        InitialBuild
 
         if ($SharedSourceFiles.Shared.Count)
         {
@@ -132,34 +163,52 @@ $SharedSourceFiles.Solutions | ForEach-Object {
         }
 
         $ProjectPath = $SolutionMap[$SolutionName].Projects | Where-Object { [io.path]::GetFileNameWithoutExtension($_) -eq $ProjectName }
-        $FilesToRemove = Get-FilesInDotNetProject $ProjectPath
-        $ProjectXml = [xml](Get-Content $ProjectPath)
-        $null = RemoveFilesFromProject $ProjectXml $ProjectPath $SharedSourceFiles.Shared $FilesToRemove
-
-        $SharedSourceFiles.Solutions | ForEach-Object {
-            $CurSolutionName = $_
-            $CurSolution = $SolutionMap[$CurSolutionName]
-
-            $CurSolution.BuildOrder | ForEach-Object {
-                $CurProjectName = $_
-
-                AdjustProject $CurSolutionName $CurSolution $CurProjectName $SharedSourceFiles.Shared
-            }
-        }
-
-        try
-        {
-            & "$PSScriptRoot\ReproduceBug" @{ } { } { 
-                "Removed all the source files from $ProjectName in $SolutionName" 
-            } -NoReset
-        }
-        catch
-        {
-            $SharedSourceFiles.Shared = $SharedBackup
-            git reset --hard HEAD
-            if ($LASTEXITCODE)
+        $FilesToRemove = $(Get-FilesInDotNetProject $ProjectPath)
+        $j = 0
+        $FilesToRemove | ForEach-Object {
+            ++$j
+            if ($StartIndex)
             {
-                throw "git reset --hard HEAD returned exit code $LastExitCode"
+                if ($j -lt $StartIndex)
+                {
+                    return
+                }
+                $StartIndex = $null
+            }
+            $FileToRemove = $_
+            Write-Host -ForegroundColor Green "[$j/$($FilesToRemove.Count)] Attempting to delete $FileToRemove from $ProjectName ..."
+            $ProjectXml = [xml](Get-Content $ProjectPath)
+            $null = RemoveFilesFromProject $ProjectXml $ProjectPath $SharedSourceFiles.Shared $FileToRemove -MayNotExist
+
+            $SharedSourceFiles.Solutions | ForEach-Object {
+                $CurSolutionName = $_
+                $CurSolution = $SolutionMap[$CurSolutionName]
+
+                $CurSolution.BuildOrder | ForEach-Object {
+                    $CurProjectName = $_
+
+                    AdjustProject $CurSolutionName $CurSolution $CurProjectName $SharedSourceFiles.Shared @{
+                        Name = $ProjectName
+                        Path = $ProjectPath
+                        Xml  = $ProjectXml
+                    }
+                }
+            }
+
+            try
+            {
+                & "$PSScriptRoot\ReproduceBug" @{ } { } { 
+                    "Removed $FileToRemove from $ProjectName in $SolutionName" 
+                } -NoReset
+            }
+            catch
+            {
+                $SharedSourceFiles.Shared = $SharedBackup
+                git reset --hard HEAD
+                if ($LASTEXITCODE)
+                {
+                    throw "git reset --hard HEAD returned exit code $LastExitCode"
+                }
             }
         }
     }

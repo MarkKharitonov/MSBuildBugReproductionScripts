@@ -42,7 +42,7 @@ if ($ctx.Skip)
 }
 
 Write-Host -ForegroundColor Green "  [$(Get-Date -Format 'HH:mm:ss')] DataSvc"
-msbuild DataSvc.sln /v:q /m /nologo
+msbuild DataSvc.sln /err /v:q /m /nologo
 if ($LastExitCode)
 {
     if ($NoReset)
@@ -54,7 +54,7 @@ if ($LastExitCode)
 
 $Time = get-date -Format 'yyyy-MM-dd_HH-mm-ss'
 Write-Host -ForegroundColor Green "  [$(Get-Date -Format 'HH:mm:ss')] Main 1"
-msbuild /err Main.sln /v:q /m /nologo "/bl:c:\temp\exp\exp-Main-${Time}_1.binlog"
+msbuild Main.sln /err /v:q /m /nologo "/bl:c:\temp\exp\exp-Main-${Time}_1.binlog"
 if ($LastExitCode)
 {
     if ($NoReset)
@@ -68,7 +68,7 @@ pskill -nobanner msbuild
 pskill -nobanner node
 pskill -nobanner cmd
 Write-Host -ForegroundColor Green "  [$(Get-Date -Format 'HH:mm:ss')] Main 2"
-msbuild /err Main.sln /v:q /m /nologo "/bl:c:\temp\exp\exp-Main-${Time}_2.binlog"
+msbuild Main.sln /err /v:q /m /nologo "/bl:c:\temp\exp\exp-Main-${Time}_2.binlog"
 if ($LastExitCode)
 {
     if ($NoReset)

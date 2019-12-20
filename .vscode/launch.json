@@ -8,7 +8,10 @@
             "name": "RemoveAllSourceFilesFromProject",
             "type": "PowerShell",
             "request": "launch",
-            "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1"
+            "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1",
+            "args": [
+                "86"
+            ]
         },
         {
             "name": "PowerShell Launch Current File",
