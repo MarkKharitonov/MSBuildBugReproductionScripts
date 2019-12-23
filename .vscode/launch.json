@@ -5,13 +5,29 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "RemoveAllSourceFilesFromProject",
+            "name": "RemoveAllSourceFilesFromProject Main Dayforce.WFM.BridgeDotNet.Main",
             "type": "PowerShell",
             "request": "launch",
             "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1",
             "args": [
-                "86"
+                "Main",
+                "Dayforce.WFM.BridgeDotNet.Main"
             ]
+        },
+        {
+            "name": "RemoveAllSourceFilesFromProject Main",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1",
+            "args": [
+                "Main"
+            ]
+        },
+        {
+            "name": "RemoveAllSourceFilesFromProject",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}\\RemoveAllSourceFilesFromProject.ps1"
         },
         {
             "name": "PowerShell Launch Current File",
