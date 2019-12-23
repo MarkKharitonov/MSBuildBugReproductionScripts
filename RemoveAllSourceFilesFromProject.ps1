@@ -26,11 +26,6 @@ $Solutions | ForEach-Object {
     $Projects | ForEach-Object {
         $ProjectName = $_
     
-        if ($ProjectName -eq 'DfVersioning')
-        {
-            return
-        }
-
         Write-Host -ForegroundColor Green "Attempting to remove all the source files from $ProjectName in $SolutionName"
 
         pskill msbuild

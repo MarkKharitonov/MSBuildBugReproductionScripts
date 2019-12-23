@@ -194,6 +194,6 @@ function ParseProject($SolutionName, $ProjectName)
                 Index       = $BuildOrder.IndexOf($ProjectName)
             }
             $_
-        } | Sort-Object -Descending Index | Where-Object { $_.ProjectName -ne 'DfVersioning' }
+        } | Sort-Object -Descending Index
     }
 }
