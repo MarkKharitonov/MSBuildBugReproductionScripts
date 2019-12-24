@@ -1,4 +1,5 @@
 Set-Location c:\dayforce\exp
+pskill msbuild
 git reset --hard HEAD
 
 $SolutionMap = @{
