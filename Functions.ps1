@@ -1,8 +1,11 @@
+$CodeTool = "$PSScriptRoot\CodeTool\bin\Debug\net472\CodeTool.exe"
+$FieldRegex = "(.+)\(\d+,\d+\): (?:error|warning) CS(?:0649|0169|0067|0414): (?:Field|The field|The event) '([^']+)\.(\w+)' is";
+
 Set-Location c:\dayforce\exp
 pskill msbuild
 git reset --hard HEAD
 
-$SolutionMap = @{
+$SolutionMap = [ordered]@{
     DataSvc = [PSCustomObject]@{
         Projects   = Get-ProjectsInSolution "DataSvc.sln"
         BuildOrder = Get-Content "C:\temp\exp\DataSvc_Projects.txt"
@@ -196,5 +199,35 @@ function ParseProject($SolutionName, $ProjectName)
             }
             $_
         } | Sort-Object -Descending Index
+    }
+}
+
+function AdjustProject2($SolutionName, $Solution, $BuildProjectName)
+{
+    $BuildTarget = $BuildProjectName.Replace('.', '_')
+    $FilePath = git diff --name-only
+    Write-Host -NoNewline "$BuildProjectName                                         `r"
+    $null = msbuild ".\$SolutionName.sln" /t:$BuildTarget /noconlog /nologo '/nowarn:CS2008;CS8021' /fl1 "/flp1:logfile=c:\temp\errors.txt;errorsonly" /fl2 "/flp2:logfile=c:\temp\warnings.txt;warningsonly"
+    Get-Content c:\temp\warnings.txt, c:\temp\errors.txt | ForEach-Object {
+        if (!($_ -match $FieldRegex))
+        {
+            throw $_
+        }
+        $FileName = $Matches[1]
+        if (!$FilePath.EndsWith($FileName))
+        {
+            $FilePath = (Get-Item "$FilePath\..\$([io.path]::GetFileName($FileName))").FullName
+        }
+        [PSCustomObject]@{
+            Message  = $_
+            FileName = $FileName
+            Class    = $Matches[2]
+            Field    = $Matches[3]
+        }
+    } | Where-Object {
+        !(& $CodeTool 'remove-field' -i $FilePath -c $_.Class -f $_.Field)
+    } | ForEach-Object {
+        Write-Host -ForegroundColor Red $_.Message 
+        throw "Failed to resolve the warning for $($_.Class).$($_.Field)"
     }
 }

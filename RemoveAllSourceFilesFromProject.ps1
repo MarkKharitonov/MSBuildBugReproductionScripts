@@ -77,4 +77,5 @@ $Solutions | ForEach-Object {
             }
         }
     }
+    $ProjectName = $null
 }
