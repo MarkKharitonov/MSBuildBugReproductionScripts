@@ -79,11 +79,11 @@ namespace CodeTool
             throw new NotImplementedException();
         }
 
-        public static IEnumerable<string> EnumerateInputFiles(string input)
+        public static IEnumerable<string> EnumerateInputFiles(string input, string filter = "*.cs")
         {
             if (Directory.Exists(input))
             {
-                return Directory.EnumerateFiles(input, "*.cs", SearchOption.AllDirectories);
+                return Directory.EnumerateFiles(input, filter, SearchOption.AllDirectories);
             }
             return new[] { input };
         }

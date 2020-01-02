@@ -104,13 +104,7 @@ namespace CodeTool
 
         private List<(string, uint)> GetFuncList(Dictionary<List<string>, List<(string, uint)>> fileRes, TypeDeclarationSyntax type)
         {
-            var fullClassName = new List<string>();
-            string className;
-            while ((className = GetTypeName(type)) != null)
-            {
-                fullClassName.Add(className);
-                type = type.Parent as TypeDeclarationSyntax;
-            }
+            List<string> fullClassName = GetTypeNameParts(type);
             if (!fileRes.TryGetValue(fullClassName, out var funcs))
             {
                 fileRes[fullClassName] = funcs = new List<(string, uint)>();
@@ -119,7 +113,20 @@ namespace CodeTool
             return funcs;
         }
 
-        private string GetTypeName(TypeDeclarationSyntax type)
+        public static List<string> GetTypeNameParts(TypeDeclarationSyntax type)
+        {
+            var fullClassName = new List<string>();
+            string className;
+            while ((className = GetTypeName(type)) != null)
+            {
+                fullClassName.Add(className);
+                type = type.Parent as TypeDeclarationSyntax;
+            }
+
+            return fullClassName;
+        }
+
+        private static string GetTypeName(TypeDeclarationSyntax type)
         {
             if (type == null)
             {

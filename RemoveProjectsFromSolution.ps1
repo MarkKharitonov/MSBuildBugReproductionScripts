@@ -1,6 +1,5 @@
 param([Parameter(Mandatory)][ValidateScript({ Test-Path $_ -PathType Leaf })]$Solution)
 
-$MSBuildBinaryLogAnalyzer = "C:\Dayforce\DevOps\MSBuildBinaryLogAnalyzer\src\bin\Debug\net472\MSBuildBinaryLogAnalyzer.exe"
 $SolutionName = (Get-Item $Solution).BaseName
 $ProjectsFilePath = "c:\Temp\exp\${SolutionName}_Projects.txt"
 $ProjectNames = Get-Content $ProjectsFilePath

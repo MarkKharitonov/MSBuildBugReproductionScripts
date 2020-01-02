@@ -13,7 +13,7 @@ $TryCount = 3
 do
 {
     --$TryCount
-    git clean -qdfx
+    git clean -qdfx -e .vs -e packages
 } while ($TryCount -and $LastExitCode)
 if ($LastExitCode)
 {

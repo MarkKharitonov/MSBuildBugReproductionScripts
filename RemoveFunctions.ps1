@@ -11,6 +11,8 @@ else
     $Solutions = $SolutionMap.Keys
 }
 
+[void][Reflection.Assembly]::LoadWithPartialName("System.Web.Extensions")
+
 $Solutions | ForEach-Object {
     $SolutionName = $_
 
@@ -45,13 +47,50 @@ $Solutions | ForEach-Object {
 
             Write-Host -ForegroundColor Green "[$j/$($FilesToNullify.Count)] Removing functions in $FileToNullify from $ProjectName ..."
 
-            ($funcs | ConvertFrom-Json).PSObject.Properties | ForEach-Object {
-                $ClassCount = $_.Value.PSObject.Properties.Count
+            $json = (New-Object -TypeName System.Web.Script.Serialization.JavaScriptSerializer -Property @{ MaxJsonLength = 67108864 }).DeserializeObject($funcs)
+            $json.GetEnumerator() | ForEach-Object {
+                $ClassCount = $_.Value.Count
                 $k = 0
                 
-                $_.Value.PSObject.Properties | ForEach-Object {
-                    $ClassName = $_.Name
+                $_.Value.GetEnumerator() | ForEach-Object {
+                    $ClassName = $_.Key
                     ++$k
+
+                    Write-Host -ForegroundColor Green "[$k/$ClassCount/$j/$($FilesToNullify.Count)] Removing class $ClassName in $FileToNullify from $ProjectName ..."
+                    $count = & $CodeTool 'remove-class' -i $FileToNullify -c $ClassName
+                    if ($count -ne 1)
+                    {
+                        Write-Host -ForegroundColor Red "& `"$CodeTool`" 'remove-function' -i $FileToNullify -c `"$ClassName`""
+                        throw "Failed to locate the class $ClassName in $FileToNullify from $ProjectName"
+                    }
+
+                    try
+                    {
+                        $SolutionMap.Keys | ForEach-Object {
+                            $CurSolutionName = $_
+                            $CurSolution = $SolutionMap[$CurSolutionName]
+
+                            $CurSolution.BuildOrder | ForEach-Object {
+                                $CurProjectName = $_
+
+                                AdjustProject2 $CurSolutionName $CurSolution $CurProjectName
+                            }
+                        }
+
+                        & "$PSScriptRoot\ReproduceBug" @{ } { } { 
+                            "Removed class $ClassName in $FileToNullify from $ProjectName in $SolutionName" 
+                        } -NoReset
+                        return
+                    }
+                    catch
+                    {
+                        Write-Host -ForegroundColor Red $_.Exception.Message
+                        git reset --hard HEAD
+                        if ($LASTEXITCODE)
+                        {
+                            throw "git reset --hard HEAD returned exit code $LastExitCode"
+                        }
+                    }
 
                     $FuncCount = $_.Value.Count
                     $n = 0
@@ -64,10 +103,11 @@ $Solutions | ForEach-Object {
                         $FuncName = $_
                         ++$n
 
-                        Write-Host -ForegroundColor Green "[$n/$FuncCount/$k/$ClassCount/$j/$($FilesToNullify.Count)] Removing $ClassName.$FuncName in $FileToNullify from $ProjectName ..."
+                        Write-Host -ForegroundColor Green "[$n/$FuncCount/$k/$ClassCount/$j/$($FilesToNullify.Count)] Removing function $ClassName.$FuncName in $FileToNullify from $ProjectName ..."
                         $count = & $CodeTool 'remove-function' -i $FileToNullify -c $ClassName -f $FuncName
                         if ($count -ne 1)
                         {
+                            Write-Host -ForegroundColor Red "& `"$CodeTool`" 'remove-function' -i $FileToNullify -c `"$ClassName`" -f $FuncName"
                             throw "Failed to locate the function $ClassName.$FuncName in $FileToNullify from $ProjectName"
                         }
 

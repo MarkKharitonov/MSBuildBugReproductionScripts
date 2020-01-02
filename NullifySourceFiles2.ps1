@@ -12,6 +12,7 @@ else
 }
 
 $InitBuild = $true
+[void][Reflection.Assembly]::LoadWithPartialName("System.Web.Extensions")
 
 $Solutions | ForEach-Object {
     $SolutionName = $_
@@ -46,13 +47,14 @@ $Solutions | ForEach-Object {
             }
 
             Write-Host -ForegroundColor Green "[$j/$($FilesToNullify.Count)] Nullifying $FileToNullify from $ProjectName ..."
+            $json = (New-Object -TypeName System.Web.Script.Serialization.JavaScriptSerializer -Property @{ MaxJsonLength = 67108864 }).DeserializeObject($funcs)
 
-            ($funcs | ConvertFrom-Json).PSObject.Properties | ForEach-Object {
-                $ClassCount = $_.Value.PSObject.Properties.Count
+            $json.GetEnumerator() | ForEach-Object {
+                $ClassCount = $_.Value.Count
                 $k = 0
                 
-                $_.Value.PSObject.Properties | ForEach-Object {
-                    $ClassName = $_.Name
+                $_.Value.GetEnumerator() | ForEach-Object {
+                    $ClassName = $_.Key
                     ++$k
 
                     $FuncCount = $_.Value.Count

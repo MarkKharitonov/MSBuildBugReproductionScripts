@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "RemoveFunctions.ps1 DataSvc Data",
+            "name": "RemoveFunctions.ps1 Main Platform",
             "type": "PowerShell",
             "request": "launch",
             "script": "${workspaceFolder}\\RemoveFunctions.ps1",
             "args": [
-                "DataSvc",
-                "Data"
+                "Main",
+                "Platform"
             ]
         },
         {
