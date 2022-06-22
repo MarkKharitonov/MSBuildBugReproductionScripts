@@ -10,6 +10,6 @@
     <PackageReference Include="Crc32C.NET" Version="1.0.5" />
     <PackageReference Include="ManyConsole" Version="2.0.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.4.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 </Project>
